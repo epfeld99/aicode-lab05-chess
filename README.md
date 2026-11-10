@@ -12,7 +12,16 @@ source .venv/bin/activate
 python3 server.py
 # Open http://127.0.0.1:8000
 python -m pytest
+ruff check .
+ruff format --check .
+mypy --strict .
 ```
+
+Save game writes the current game to `game.save.json` beside `server.py`, replacing any
+earlier save; choose another file with `python3 server.py --save-file path`. Load saved
+game restores it, also after restarting the server: the board, side to move, move
+notation, opponent, and the full move history. Loading replays that history from the
+starting position and refuses a file that does not match it.
 
 Start a game against another person or against the computer. Against the computer you
 play White; it looks one move ahead and plays the move that leaves it the most material,
@@ -32,9 +41,11 @@ plays the same moves.
 ## Files
 
 - `game.py`: board and turn in a position list; movement, check, checkmate and stalemate.
-- `session.py`: game actions, the opponent, displayed move notation, and sidebar information.
+- `session.py`: game actions, the opponent, displayed move notation, move history, saving
+  and loading, and sidebar information.
 - `computer.py`: the computer opponent.
-- `server.py`: one in-memory game, HTTP actions, and static files. Restarting loses the game.
+- `server.py`: one in-memory game, HTTP actions, and static files. Restarting loses the game
+  unless it was saved.
 - `static/`: browser presentation and square selection. All movement decisions run in Python.
 - `tests/`: starter behavior checks.
 

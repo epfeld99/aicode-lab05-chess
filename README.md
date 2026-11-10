@@ -27,12 +27,17 @@ Start a game against another person or against the computer. Against the compute
 play White; it looks one move ahead and plays the move that leaves it the most material,
 preferring checkmate. Select a piece, then a highlighted destination. White moves first.
 Standard movement, captures, check, checkmate and stalemate apply: you cannot leave your
-own king in check, checkmate wins, and stalemate is a draw. Pawns initially remain pawns at
-the far rank; a later branch adds promotion to a piece the player chooses. There is no clock.
+own king in check, checkmate wins, and stalemate is a draw. A pawn reaching the far rank
+promotes to a piece the player chooses. There is no clock.
 
-**Not supported: castling and en passant.** Neither move exists in this game. The other
-draw rules (insufficient material, threefold repetition, the fifty-move rule) are not
-implemented either.
+Castling and en passant follow the standard rules. To castle, select the king and then the
+square two to the side (g1 or c1 for White). Castling needs a king and rook that have not
+moved, empty squares between them, and a king that is not in check and does not cross or
+land on an attacked square. A pawn may capture en passant only on the move right after the
+opposing pawn's double step. Notation shows castling as O-O and O-O-O.
+
+**Not supported: the other draw rules** (insufficient material, threefold repetition, the
+fifty-move rule).
 
 To reach promotion quickly from a new game, play a2-a4, h7-h5, a4-a5, h5-h4, a5-a6,
 h4-h3, a6-b7, h3-g2. White can then play b7 to a8. In tests, the `promotion-setup` action

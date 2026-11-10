@@ -1,14 +1,24 @@
 """A computer opponent that looks one move ahead."""
 
 import random
+from collections.abc import Iterator, Sequence
+from typing import Protocol, TypeVar
 
-from game import copy_position, legal_moves, move, status
+from game import Position, copy_position, legal_moves, move, status
 
 VALUES = {"P": 1, "N": 3, "B": 3, "R": 5, "Q": 9, "K": 0}
 CHECKMATE = 1000
 
+T = TypeVar("T")
 
-def candidate_moves(position):
+
+class Chooser(Protocol):
+    """The random module, or a random.Random instance."""
+
+    def choice(self, seq: Sequence[T], /) -> T: ...
+
+
+def candidate_moves(position: Position) -> Iterator[tuple[str, str]]:
     board, turn = position[:2]
     for source, piece in sorted(board.items()):
         if piece[0] == turn:
@@ -16,7 +26,7 @@ def candidate_moves(position):
                 yield (source, target)
 
 
-def evaluate(position, side):
+def evaluate(position: Position, side: str) -> int:
     """Score a position for side: material, unless the game is over."""
     result = status(position)
     if result == "checkmate":
@@ -27,10 +37,13 @@ def evaluate(position, side):
                for piece in position[0].values())
 
 
-def choose_move(position, rng=random):
+def choose_move(
+    position: Position, rng: Chooser = random
+) -> tuple[str, str] | None:
     """Return the move with the best score after it, or None if there is no move."""
     side = position[1]
-    best, best_score = [], None
+    best: list[tuple[str, str]] = []
+    best_score: int | None = None
     for candidate in candidate_moves(position):
         trial = copy_position(position)
         move(trial, *candidate)

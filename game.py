@@ -4,12 +4,19 @@ Check, checkmate and stalemate follow standard chess. There is no castling and n
 en passant.
 """
 
+from typing import Any
+
+# A board maps squares such as "e2" to pieces such as "wP".
+Board = dict[str, str]
+# [board, side to move]; a list so moves can update it in place.
+Position = list[Any]
+
 FILES = "abcdefgh"
 BACK_ROW = "RNBQKBNR"
 
 
-def new_position():
-    board = {}
+def new_position() -> Position:
+    board: Board = {}
     for file, piece in zip(FILES, BACK_ROW):
         board[file + "1"] = "w" + piece
         board[file + "2"] = "wP"
@@ -18,12 +25,12 @@ def new_position():
     return [board, "w"]
 
 
-def copy_position(position):
+def copy_position(position: Position) -> Position:
     """Copy the board and side to move."""
     return [position[0].copy(), position[1]]
 
 
-def coordinates(square):
+def coordinates(square: object) -> tuple[int, int]:
     if not isinstance(square, str) or len(square) != 2:
         raise ValueError("Expected a square such as e2")
     if square[0] not in FILES or square[1] not in "12345678":
@@ -31,18 +38,18 @@ def coordinates(square):
     return FILES.index(square[0]), int(square[1]) - 1
 
 
-def other(side):
+def other(side: str) -> str:
     return "b" if side == "w" else "w"
 
 
-def in_check(board, side):
+def in_check(board: Board, side: str) -> bool:
     king = next((square for square, piece in board.items() if piece == side + "K"), None)
     return king is not None and any(
         king in reachable(board, square) for square, piece in board.items()
         if piece[0] != side)
 
 
-def status(position):
+def status(position: Position) -> str | None:
     """Return "check", "checkmate", "stalemate", or None for the side to move."""
     board, turn = position[:2]
     check = in_check(board, turn)
@@ -52,13 +59,13 @@ def status(position):
     return "checkmate" if check else "stalemate"
 
 
-def winner(position):
+def winner(position: Position) -> str | None:
     if status(position) == "checkmate":
         return "White" if position[1] == "b" else "Black"
     return None
 
 
-def legal_moves(position, source):
+def legal_moves(position: Position, source: str) -> list[str]:
     """Moves for the side to move that do not leave its own king in check."""
     coordinates(source)
     board, turn = position[:2]
@@ -74,7 +81,7 @@ def legal_moves(position, source):
     return targets
 
 
-def reachable(board, source):
+def reachable(board: Board, source: str) -> list[str]:
     """Squares the piece on source attacks or can move to, ignoring check."""
     piece = board[source]
     turn = piece[0]
@@ -122,7 +129,7 @@ def reachable(board, source):
     return targets
 
 
-def move(position, source, target):
+def move(position: Position, source: str, target: str) -> str:
     """Apply a move in place. Return a short move label."""
     coordinates(target)
     if target not in legal_moves(position, source):
@@ -132,5 +139,5 @@ def move(position, source, target):
     captured = board.get(target)
     board[target] = piece
     position[1] = other(position[1])
-    suffix = {"check": "+", "checkmate": "#"}.get(status(position), "")
+    suffix = {"check": "+", "checkmate": "#"}.get(status(position) or "", "")
     return source + ("x" if captured else "-") + target + suffix

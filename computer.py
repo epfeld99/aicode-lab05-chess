@@ -4,7 +4,16 @@ import random
 from collections.abc import Iterator, Sequence
 from typing import Protocol, TypeVar
 
-from game import Position, copy_position, legal_moves, move, status
+from game import (
+    PROMOTION_PIECES,
+    Move,
+    Position,
+    copy_position,
+    legal_moves,
+    move,
+    promotes,
+    status,
+)
 
 VALUES = {"P": 1, "N": 3, "B": 3, "R": 5, "Q": 9, "K": 0}
 CHECKMATE = 1000
@@ -18,12 +27,16 @@ class Chooser(Protocol):
     def choice(self, seq: Sequence[T], /) -> T: ...
 
 
-def candidate_moves(position: Position) -> Iterator[tuple[str, str]]:
+def candidate_moves(position: Position) -> Iterator[Move]:
     board, turn = position[:2]
     for source, piece in sorted(board.items()):
         if piece[0] == turn:
             for target in legal_moves(position, source):
-                yield (source, target)
+                if promotes(position, source, target):
+                    for kind in PROMOTION_PIECES:
+                        yield (source, target, kind)
+                else:
+                    yield (source, target)
 
 
 def evaluate(position: Position, side: str) -> int:
@@ -39,10 +52,10 @@ def evaluate(position: Position, side: str) -> int:
     )
 
 
-def choose_move(position: Position, rng: Chooser = random) -> tuple[str, str] | None:
+def choose_move(position: Position, rng: Chooser = random) -> Move | None:
     """Return the move with the best score after it, or None if there is no move."""
     side = position[1]
-    best: list[tuple[str, str]] = []
+    best: list[Move] = []
     best_score: int | None = None
     for candidate in candidate_moves(position):
         trial = copy_position(position)

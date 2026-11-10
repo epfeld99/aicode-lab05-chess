@@ -4,14 +4,16 @@ import json
 from pathlib import Path
 from typing import Any
 
-from captured import missing_pieces
+from captured import captured_pieces
 from computer import choose_move
 from game import (
+    Move,
     Position,
     copy_position,
     legal_moves,
     move,
     new_position,
+    promotes,
     status,
     winner,
 )
@@ -55,18 +57,20 @@ class Session:
         # The position before each played move; history[i] precedes notation[i].
         self.history: list[Position] = []
         # Every move played from the start, so a saved game can be replayed.
-        self.moves: list[tuple[str, str]] = []
+        self.moves: list[Move] = []
 
-    def play(self, source: str, target: str) -> None:
+    def play(self, source: str, target: str, promotion: str | None = None) -> None:
         before = copy_position(self.position)
-        label = move(self.position, source, target)
+        label = move(self.position, source, target, promotion)
         self.history.append(before)
         self.notation.append(label)
-        self.moves.append((source, target))
+        self.moves.append(
+            (source, target) if promotion is None else (source, target, promotion)
+        )
         self.after_move()
 
     def after_move(self) -> None:
-        self.captured = missing_pieces(self.position)
+        self.captured = captured_pieces(self.history, self.moves)
 
     def undo(self) -> None:
         """Take back the last move; against the computer, return to the human's turn.
@@ -146,14 +150,14 @@ class Session:
         moves = data.get("moves")
         if not isinstance(moves, list) or not all(
             isinstance(entry, list)
-            and len(entry) == 2
+            and len(entry) in (2, 3)
             and all(isinstance(part, str) for part in entry)
             for entry in moves
         ):
             raise ValueError("The saved moves are damaged")
         restored = type(self)(data.get("opponent", ""), self.save_path)
-        for source, target in moves:
-            restored.play(source, target)
+        for entry in moves:
+            restored.play(*entry)
         if (
             restored.position[0] != data.get("board")
             or restored.position[1] != data.get("turn")
@@ -168,7 +172,11 @@ class Session:
         if command == "move":
             if self.computer_to_move():
                 raise ValueError("Wait for the computer's move")
-            self.play(square(action, "source"), square(action, "target"))
+            self.play(
+                square(action, "source"),
+                square(action, "target"),
+                action.get("promotion"),
+            )
         elif command == "computer-move":
             if not self.computer_to_move():
                 raise ValueError("It is not the computer's turn")
@@ -179,7 +187,14 @@ class Session:
         elif command == "undo":
             self.undo()
         elif command == "legal":
-            return {"targets": legal_moves(self.position, square(action, "source"))}
+            source = square(action, "source")
+            targets = legal_moves(self.position, source)
+            return {
+                "targets": targets,
+                "promotions": [
+                    t for t in targets if promotes(self.position, source, t)
+                ],
+            }
         elif command == "new":
             self.reset(action.get("opponent", "human"))
         elif command == "promotion-setup":

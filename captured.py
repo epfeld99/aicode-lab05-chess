@@ -1,11 +1,18 @@
-"""Counts for the captured-pieces sidebar."""
+"""The captured-pieces sidebar."""
 
-from collections import Counter
+from collections.abc import Sequence
 
-from game import Position, new_position
+from game import Move, Position
 
 
-def missing_pieces(position: Position) -> list[str]:
-    initial = Counter(new_position()[0].values())
-    current = Counter(position[0].values())
-    return sorted((initial - current).elements())
+def captured_pieces(history: Sequence[Position], moves: Sequence[Move]) -> list[str]:
+    """Pieces taken by the played moves, with their type when captured.
+
+    history[i] is the position before moves[i]; a capture is whatever stood on
+    the target square. A promotion alone captures nothing.
+    """
+    return sorted(
+        before[0][played[1]]
+        for before, played in zip(history, moves, strict=True)
+        if played[1] in before[0]
+    )

@@ -20,8 +20,13 @@ mypy --strict .
 Save game writes the current game to `game.save.json` beside `server.py`, replacing any
 earlier save; choose another file with `python3 server.py --save-file path`. Load saved
 game restores it, also after restarting the server: the board, side to move, move
-notation, opponent, and the full move history. Loading replays that history from the
-starting position and refuses a file that does not match it.
+notation, opponent, the full move history, and the moves left to redo. Loading replays
+that history from the starting position and refuses a file that does not match it.
+
+Undo takes back the last move and Redo restores it, with its capture or chosen promotion.
+Against the computer both work a round at a time: Undo takes back your move and the
+computer's reply, and Redo restores that same reply rather than choosing again. Playing any
+move after undoing discards what was left to redo; a new game clears both.
 
 Start a game against another person or against the computer. Against the computer you
 play White; it looks one move ahead and plays the move that leaves it the most material,

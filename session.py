@@ -32,7 +32,19 @@ PROMOTION_SETUP = [
 ]
 
 OPPONENTS = ("human", "computer")
-SAVE_VERSION = 1
+SAVE_VERSION = 2
+
+
+def saved_moves(value: object) -> list[list[str]]:
+    """Return a list of moves read from a save file, or raise ValueError."""
+    if not isinstance(value, list) or not all(
+        isinstance(entry, list)
+        and len(entry) in (2, 3)
+        and all(isinstance(part, str) for part in entry)
+        for entry in value
+    ):
+        raise ValueError("The saved moves are damaged")
+    return value
 
 
 def square(action: dict[str, Any], key: str) -> str:
@@ -58,8 +70,15 @@ class Session:
         self.history: list[Position] = []
         # Every move played from the start, so a saved game can be replayed.
         self.moves: list[Move] = []
+        # Moves taken back by undo, the next one to redo last.
+        self.undone: list[Move] = []
 
     def play(self, source: str, target: str, promotion: str | None = None) -> None:
+        """Play a new move, which discards anything left to redo."""
+        self.undone.clear()
+        self.apply(source, target, promotion)
+
+    def apply(self, source: str, target: str, promotion: str | None = None) -> None:
         before = copy_position(self.position)
         label = move(self.position, source, target, promotion)
         self.history.append(before)
@@ -88,16 +107,30 @@ class Session:
     def take_back(self) -> None:
         self.position = self.history.pop()
         self.notation.pop()
-        self.moves.pop()
+        self.undone.append(self.moves.pop())
+
+    def redo(self) -> None:
+        """Restore what the last undo took back; against the computer, the whole round.
+
+        The computer's reply is the one that was undone, not chosen again. With
+        nothing to redo, nothing changes.
+        """
+        if not self.undone:
+            return
+        self.apply(*self.undone.pop())
+        if self.opponent == "computer" and self.position[1] == "b" and self.undone:
+            self.apply(*self.undone.pop())
 
     def view(self) -> dict[str, Any]:
+        # Copies, so a view kept by the caller does not change with later moves.
         return {
-            "board": self.position[0],
+            "board": dict(self.position[0]),
             "turn": self.position[1],
-            "moves": self.notation,
+            "moves": list(self.notation),
             "opponent": self.opponent,
             "status": status(self.position),
             "winner": winner(self.position),
+            "can_redo": bool(self.undone),
             **self.sidebar(),
         }
 
@@ -109,7 +142,7 @@ class Session:
         )
 
     def sidebar(self) -> dict[str, Any]:
-        return {"captured": self.captured}
+        return {"captured": list(self.captured)}
 
     def configured_save_path(self) -> Path:
         if self.save_path is None:
@@ -126,6 +159,8 @@ class Session:
             "turn": self.position[1],
             "notation": self.notation,
             "moves": [list(entry) for entry in self.moves],
+            # The moves redo would restore, in the order it restores them.
+            "redo": [list(entry) for entry in reversed(self.undone)],
         }
         partial = path.with_name(path.name + ".tmp")
         partial.write_text(json.dumps(data, indent=2), encoding="utf-8")
@@ -135,7 +170,8 @@ class Session:
         """Replace the game with the saved one, or leave it unchanged on failure.
 
         The moves are replayed from the starting position and must reproduce the
-        saved board, turn and notation, which also rebuilds the undo history.
+        saved board, turn and notation, which also rebuilds the undo history. The
+        redo continuation is played and taken back again, so it must be legal too.
         """
         path = self.configured_save_path()
         try:
@@ -145,16 +181,11 @@ class Session:
         except OSError as error:
             raise ValueError("Could not read the saved game") from error
         data = json.loads(text)
-        if not (isinstance(data, dict) and data.get("version") == SAVE_VERSION):
+        # Version 1 saves came before redo and have nothing to redo.
+        if not (isinstance(data, dict) and data.get("version") in (1, SAVE_VERSION)):
             raise ValueError("Not a saved game from this version")
-        moves = data.get("moves")
-        if not isinstance(moves, list) or not all(
-            isinstance(entry, list)
-            and len(entry) in (2, 3)
-            and all(isinstance(part, str) for part in entry)
-            for entry in moves
-        ):
-            raise ValueError("The saved moves are damaged")
+        moves = saved_moves(data.get("moves"))
+        redo = saved_moves(data.get("redo") if data["version"] > 1 else [])
         restored = type(self)(data.get("opponent", ""), self.save_path)
         for entry in moves:
             restored.play(*entry)
@@ -164,6 +195,11 @@ class Session:
             or restored.notation != data.get("notation")
         ):
             raise ValueError("The saved game does not match its moves")
+        for entry in redo:
+            restored.apply(*entry)
+        for _ in redo:
+            restored.take_back()
+        restored.after_move()
         # Take every attribute, including any that after_move maintains.
         vars(self).update(vars(restored))
 
@@ -186,6 +222,8 @@ class Session:
             self.play(*choice)
         elif command == "undo":
             self.undo()
+        elif command == "redo":
+            self.redo()
         elif command == "legal":
             source = square(action, "source")
             targets = legal_moves(self.position, source)

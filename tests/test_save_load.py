@@ -131,7 +131,7 @@ def test_load_replaces_the_current_game(save_path: Path) -> None:
 def test_save_file_is_versioned_json(save_path: Path) -> None:
     played(save_path, OPENING[:2]).dispatch({"action": "save"})
     data = json.loads(save_path.read_text(encoding="utf-8"))
-    assert data["version"] == 1
+    assert data["version"] == 2
     assert data["opponent"] == "human"
     assert data["turn"] == "w"
     assert data["notation"] == ["e2-e4", "d7-d5"]

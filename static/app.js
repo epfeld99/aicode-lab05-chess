@@ -90,6 +90,7 @@ function render() {
     }
     return item;
   }));
+  document.querySelector('#controls [data-action="undo"]').disabled = !state.moves.length;
   document.querySelector('#captured-panel').hidden = !Object.hasOwn(state, 'captured');
   const captured = state.captured || [];
   document.querySelector('#captured').replaceChildren(...captured.map(pieceGlyph));

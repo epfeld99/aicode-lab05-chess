@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from captured import missing_pieces
 from computer import choose_move
 from game import (
     Position,
@@ -49,6 +50,7 @@ class Session:
             raise ValueError("Unknown opponent")
         self.position: Position = new_position()
         self.notation: list[str] = []
+        self.captured: list[str] = []
         self.opponent = opponent
         # The position before each played move; history[i] precedes notation[i].
         self.history: list[Position] = []
@@ -64,7 +66,7 @@ class Session:
         self.after_move()
 
     def after_move(self) -> None:
-        pass
+        self.captured = missing_pieces(self.position)
 
     def undo(self) -> None:
         """Take back the last move; against the computer, return to the human's turn.
@@ -103,7 +105,7 @@ class Session:
         )
 
     def sidebar(self) -> dict[str, Any]:
-        return {}
+        return {"captured": self.captured}
 
     def configured_save_path(self) -> Path:
         if self.save_path is None:
